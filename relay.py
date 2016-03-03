@@ -76,13 +76,13 @@ class Relay(threading.Thread):
                         get_host = False
 
                 threading.Thread(target=setup_pipes, args=(r_conn, self.backend_hosts[rr_ptr][0] )).start()
-                #r_conn.close()
             except socket.timeout:
-                pass
-            except Exception as e:
                 pass
             except KeyboardInterrupt:
                 pass
+            except Exception as e:
+                print(e)
+
 
 if __name__ == "__main__":
     # ((addr, port), priority)
