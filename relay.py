@@ -98,13 +98,14 @@ class Relay(threading.Thread):
 
                 threading.Thread(target=setup_pipes, args=(
                     r_conn, self.target_hosts[rr_ptr][0])).start()
-                # r_conn.close()
+                threading.Thread(target=setup_pipes, args=(r_conn, self.backend_hosts[rr_ptr][0] )).start()
             except socket.timeout:
-                pass
-            except Exception as e:
                 pass
             except KeyboardInterrupt:
                 pass
+            except Exception as e:
+                print(e)
+
 
 if __name__ == "__main__":
     to_print = True
