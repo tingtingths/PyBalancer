@@ -10,11 +10,12 @@ import (
 type Target struct {
 	hostname string
 	port     int
+	weight   int
 }
 
 var port = "54322"
-var DEBUG = true
-var targets = []Target{Target{"127.0.0.1", 80}}
+var DEBUG = false
+var targets = []Target{Target{"ipinfo.io", 80, 1}}
 
 func pipe(source, dest net.Conn) {
 	reader := bufio.NewReader(source)
@@ -58,7 +59,8 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	rr_ptr := -1
+	rr_ptr := 0
+	weight_count := 0
 
 	fmt.Println("Relay " + port)
 	for {
@@ -72,8 +74,12 @@ func main() {
 
 		if len(targets)-1 <= rr_ptr {
 			rr_ptr = 0
-		} else {
+			weight_count = 0
+		} else if weight_count >= targets[rr_ptr].weight-1 {
 			rr_ptr++
+			weight_count = 0
+		} else {
+			weight_count++
 		}
 
 		go setup_pipes(r_conn, targets[rr_ptr])
