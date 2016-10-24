@@ -78,7 +78,7 @@ class Relay(threading.Thread):
         listen_sock.bind(("0.0.0.0", self.port))
         listen_sock.listen(512)
         listen_sock.settimeout(4)
-        rr_ptr = -1  # idx of pervious backend server used in round-robin style
+        rr_ptr = -1  # idx of pervious target server used in round-robin style
         print("Relay " + str(self.port))
 
         while True:
@@ -98,7 +98,6 @@ class Relay(threading.Thread):
 
                 threading.Thread(target=setup_pipes, args=(
                     r_conn, self.target_hosts[rr_ptr][0])).start()
-                threading.Thread(target=setup_pipes, args=(r_conn, self.backend_hosts[rr_ptr][0] )).start()
             except socket.timeout:
                 pass
             except KeyboardInterrupt:
