@@ -1,2 +1,2 @@
-# PyBalancer
-TCP load balancer
+# TcpBalancer
+TCP load balancer in different languages.
