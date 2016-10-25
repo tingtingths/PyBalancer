@@ -13,9 +13,15 @@ type Target struct {
 	weight   int
 }
 
+type PipeArgs struct {
+	r_conn net.Conn
+	target Target
+}
+
 var port = "54322"
 var DEBUG = true
 var targets = []Target{Target{"ipinfo.io", 80, 1}}
+var channel = make(chan PipeArgs)
 
 func pipe(source, dest net.Conn) {
 	reader := bufio.NewReader(source)
@@ -42,14 +48,20 @@ func pipe(source, dest net.Conn) {
 	}
 }
 
-func setup_pipes(r_conn net.Conn, target Target) {
-	if DEBUG {
-		fmt.Printf("Target: %s:%d\n", target.hostname, target.port)
-	}
-	target_conn, err := net.Dial("tcp", target.hostname+":"+strconv.Itoa(target.port))
-	if err == nil {
-		go pipe(r_conn, target_conn)
-		go pipe(target_conn, r_conn)
+func worker(id int) {
+	fmt.Printf("worker %d\n", id)
+	for {
+		args := <-channel
+		r_conn := args.r_conn
+		target := args.target
+		if DEBUG {
+			fmt.Printf("Target: %s:%d\n", target.hostname, target.port)
+		}
+		target_conn, err := net.Dial("tcp", target.hostname+":"+strconv.Itoa(target.port))
+		if err == nil {
+			go pipe(r_conn, target_conn)
+			go pipe(target_conn, r_conn)
+		}
 	}
 }
 
@@ -61,6 +73,10 @@ func main() {
 	}
 	rr_ptr := 0
 	weight_count := 0
+	num_worker := 10
+	for i := 0; i < num_worker; i++ {
+		go (worker)(i)
+	}
 
 	fmt.Println("Relay " + port)
 	for {
@@ -87,6 +103,8 @@ func main() {
 			}
 		}
 
-		go setup_pipes(r_conn, targets[rr_ptr])
+		select {
+		case channel <- PipeArgs{r_conn, targets[rr_ptr]}:
+		}
 	}
 }
