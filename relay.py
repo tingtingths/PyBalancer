@@ -11,7 +11,7 @@ def pipe(source, dest):
 
     while True:
         try:
-            data = source.recv(10485760)
+            data = source.recv(40960)
             if not data:
                 break
             dest.send(data)
@@ -22,9 +22,8 @@ def pipe(source, dest):
                       str(len(data)) + " bytes--> " + str(dest.getpeername()))
         except:
             break
-        finally:
-            source.close()
-            dest.close()
+    source.close()
+    dest.close()
 
 
 def setup_pipes(r_conn, target):
@@ -33,8 +32,8 @@ def setup_pipes(r_conn, target):
     _target = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     _target.connect(target)
 
-    threading.Thread(target=pipe, args=(r_conn, _target)).start()
-    threading.Thread(target=pipe, args=(_target, r_conn)).start()
+    threading.Thread(target=pipe, args=(_target, r_conn), daemon=True).start()
+    threading.Thread(target=pipe, args=(r_conn, _target), daemon=True).start()
 
 
 class Relay(threading.Thread):
@@ -49,7 +48,8 @@ class Relay(threading.Thread):
         listen_sock.bind(("0.0.0.0", self.port))
         listen_sock.listen(512)
         listen_sock.settimeout(4)
-        rr_ptr = -1  # idx of pervious target server used in round-robin style
+        rr_ptr = 0 # idx of pervious target server used in round-robin style
+        weight_count = 0
         print("Relay " + str(self.port))
 
         while True:
@@ -61,21 +61,24 @@ class Relay(threading.Thread):
                 get_host = True
                 while get_host:
                     # round-robin
-                    if len(self.target_hosts) - 1 <= rr_ptr:
+                    if len(self.target_hosts) <= rr_ptr:
                         rr_ptr = 0
-                    else:
+                        weight_count = 0
+                    if weight_count > self.target_hosts[rr_ptr][1] - 1 or self.target_hosts[rr_ptr][1] <= 0:
                         rr_ptr += 1
-                    if self.target_hosts[rr_ptr][-1] >= 0:
+                        weight_count = 0
+                    else:
+                        weight_count += 1
                         get_host = False
 
                 threading.Thread(
                     target=setup_pipes, args=(
-                        r_conn, self.target_hosts[rr_ptr][0])).start()
+                        r_conn, self.target_hosts[rr_ptr][0]), daemon=True).start()
             except:
                 pass
 
 
 if __name__ == "__main__":
-    # ((addr, port), priority)
+    # ((addr, port), weight)
     targets = [(("ipinfo.io", 80), 1)]
     Relay(54321, targets).start()
