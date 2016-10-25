@@ -14,7 +14,7 @@ type Target struct {
 }
 
 var port = "54322"
-var DEBUG = false
+var DEBUG = true
 var targets = []Target{Target{"ipinfo.io", 80, 1}}
 
 func pipe(source, dest net.Conn) {
@@ -72,14 +72,19 @@ func main() {
 			fmt.Printf("Connected from %s\n", r_conn.RemoteAddr())
 		}
 
-		if len(targets)-1 <= rr_ptr {
-			rr_ptr = 0
-			weight_count = 0
-		} else if weight_count >= targets[rr_ptr].weight-1 {
-			rr_ptr++
-			weight_count = 0
-		} else {
-			weight_count++
+		get_host := true
+		for get_host {
+			if len(targets) <= rr_ptr { // check if ptr out of bound
+				rr_ptr = 0
+				weight_count = 0
+			}
+			if weight_count > targets[rr_ptr].weight-1 || targets[rr_ptr].weight <= 0 { // move to next target if exceed weight or weight too low
+				rr_ptr++
+				weight_count = 0
+			} else {
+				weight_count++
+				get_host = false
+			}
 		}
 
 		go setup_pipes(r_conn, targets[rr_ptr])
