@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"runtime"
 	"strconv"
-    "runtime"
 )
 
 type Target struct {
@@ -19,18 +19,22 @@ type Job struct {
 	target Target
 }
 
-var port = "54322"
-var DEBUG = true
-var	num_worker = runtime.NumCPU()
-var chan_buf_size = 100
+// CONFIG -----
+var port = "59999"
+var DEBUG = false
+var num_worker = runtime.NumCPU() * 2
+var pipe_buf_size = 4000
+var chan_buf_size = 1
 var targets = []Target{Target{"ipinfo.io", 80, 1}}
+
+// ------------
 
 var workQ = make(chan Job, chan_buf_size)
 
 func pipe(source, dest net.Conn) {
 	reader := bufio.NewReader(source)
 	writer := bufio.NewWriter(dest)
-	buf := make([]byte, 40960)
+	buf := make([]byte, pipe_buf_size)
 	for {
 		n, err := reader.Read(buf)
 		if err != nil {
@@ -106,8 +110,6 @@ func main() {
 			}
 		}
 
-		select {
-		case workQ <- Job{r_conn, targets[rr_ptr]}:
-		}
+		workQ <- Job{r_conn, targets[rr_ptr]}
 	}
 }
