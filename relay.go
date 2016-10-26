@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+    "runtime"
 )
 
 type Target struct {
@@ -13,15 +14,18 @@ type Target struct {
 	weight   int
 }
 
-type PipeArgs struct {
+type Job struct {
 	r_conn net.Conn
 	target Target
 }
 
 var port = "54322"
 var DEBUG = true
+var	num_worker = runtime.NumCPU()
+var chan_buf_size = 100
 var targets = []Target{Target{"ipinfo.io", 80, 1}}
-var channel = make(chan PipeArgs)
+
+var workQ = make(chan Job, chan_buf_size)
 
 func pipe(source, dest net.Conn) {
 	reader := bufio.NewReader(source)
@@ -51,9 +55,9 @@ func pipe(source, dest net.Conn) {
 func worker(id int) {
 	fmt.Printf("worker %d\n", id)
 	for {
-		args := <-channel
-		r_conn := args.r_conn
-		target := args.target
+		job := <-workQ
+		r_conn := job.r_conn
+		target := job.target
 		if DEBUG {
 			fmt.Printf("Target: %s:%d\n", target.hostname, target.port)
 		}
@@ -73,7 +77,6 @@ func main() {
 	}
 	rr_ptr := 0
 	weight_count := 0
-	num_worker := 10
 	for i := 0; i < num_worker; i++ {
 		go (worker)(i)
 	}
@@ -104,7 +107,7 @@ func main() {
 		}
 
 		select {
-		case channel <- PipeArgs{r_conn, targets[rr_ptr]}:
+		case workQ <- Job{r_conn, targets[rr_ptr]}:
 		}
 	}
 }
