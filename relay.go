@@ -19,9 +19,14 @@ type Job struct {
 	target Target
 }
 
+const (
+    DIR_SEND = 1
+    DIR_RECV = 2
+)
+
 // CONFIG -----
 var port = "59999"
-var DEBUG = false
+var DEBUG = true
 var num_worker = runtime.NumCPU() * 2
 var pipe_buf_size = 4000
 var chan_buf_size = 1
@@ -31,7 +36,7 @@ var targets = []Target{Target{"ipinfo.io", 80, 1}}
 
 var workQ = make(chan Job, chan_buf_size)
 
-func pipe(source, dest net.Conn) {
+func pipe(source, dest net.Conn, dir int) {
 	reader := bufio.NewReader(source)
 	writer := bufio.NewWriter(dest)
 	buf := make([]byte, pipe_buf_size)
@@ -50,7 +55,12 @@ func pipe(source, dest net.Conn) {
 			}
 			writer.Flush()
 			if DEBUG {
-				fmt.Printf("(%s) --%d bytes--> (%s)\n", source.RemoteAddr(), n, dest.RemoteAddr())
+                if dir == DIR_SEND {
+				    fmt.Printf("(%s) --%d bytes--> (%s)\n", source.RemoteAddr(), n, dest.RemoteAddr())
+                }
+                if dir == DIR_RECV {
+				    fmt.Printf("(%s) <--%d bytes-- (%s)\n", dest.RemoteAddr(), n, source.RemoteAddr())
+                }
 			}
 		}
 	}
@@ -67,8 +77,8 @@ func worker(id int) {
 		}
 		target_conn, err := net.Dial("tcp", target.hostname+":"+strconv.Itoa(target.port))
 		if err == nil {
-			go pipe(r_conn, target_conn)
-			go pipe(target_conn, r_conn)
+			go pipe(r_conn, target_conn, DIR_SEND)
+			go pipe(target_conn, r_conn, DIR_RECV)
 		}
 	}
 }

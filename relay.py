@@ -2,11 +2,15 @@ import socket
 import threading
 import sys
 import datetime
+from enum import Enum
 
 DEBUG = True
 
+class Direction(Enum):
+    SEND = 1
+    RECV = 2
 
-def pipe(source, dest):
+def pipe(source, dest, direction):
     source.settimeout(2)
 
     while True:
@@ -18,8 +22,10 @@ def pipe(source, dest):
             if DEBUG:
                 time = datetime.datetime.today().strftime(
                     "[%d/%b/%Y %H:%M:%S]")
-                print(time + " " + str(source.getpeername()) + " --" +
-                      str(len(data)) + " bytes--> " + str(dest.getpeername()))
+                if direction is Direction.SEND:
+                    print(time + " " + str(source.getpeername()) + " --" + str(len(data)) + " bytes--> " + str(dest.getpeername()))
+                else:
+                    print(time + " " + str(dest.getpeername()) + " <--" + str(len(data)) + " bytes-- " + str(source.getpeername()))
         except:
             break
     source.close()
@@ -32,8 +38,8 @@ def setup_pipes(r_conn, target):
     _target = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     _target.connect(target)
 
-    threading.Thread(target=pipe, args=(_target, r_conn), daemon=True).start()
-    threading.Thread(target=pipe, args=(r_conn, _target), daemon=True).start()
+    threading.Thread(target=pipe, args=(_target, r_conn, Direction.RECV), daemon=True).start()
+    threading.Thread(target=pipe, args=(r_conn, _target, Direction.SEND), daemon=True).start()
 
 
 class Relay(threading.Thread):
